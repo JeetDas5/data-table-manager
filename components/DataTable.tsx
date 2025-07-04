@@ -1,7 +1,8 @@
 "use client";
 
-import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
+import { useColorMode } from "@/hooks/ThemeToggle";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Table,
   TableBody,
@@ -23,30 +24,47 @@ import {
   Box,
   IconButton,
   Typography,
+  Snackbar,
+  Alert,
+  SnackbarCloseReason,
+  Switch,
 } from "@mui/material";
-import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
+import { useEffect, useState } from "react";
 import { setData } from "@/redux/tableSlice";
-import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 
 const defaultColumns = ["name", "email", "age", "role"];
 
 const DataTable = () => {
   const dispatch = useDispatch();
+  const { mode, toggleColorMode } = useColorMode();
   const rows = useSelector((state: RootState) => state.table.data);
   const [editableRows, setEditableRows] = useState<{
     [key: number]: DataTableType;
   }>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState("");
+  const [openSaved, setOpenSaved] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     ...defaultColumns,
   ]);
+  const [allColumns, setAllColumns] = useState<string[]>([...defaultColumns]);
   const [page, setPage] = useState(0);
-  const [rowsPerPage] = useState(10);
+  const [rowsPerPage] = useState(5);
   const [modalOpen, setModalOpen] = useState(false);
   const [newField, setNewField] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
@@ -56,13 +74,42 @@ const DataTable = () => {
   }>({});
 
   useEffect(() => {
-    const stored = localStorage.getItem("visibleColumns");
-    if (stored) setVisibleColumns(JSON.parse(stored));
+    const allCols = JSON.parse(localStorage.getItem("allColumns") || "null");
+    const visibleCols = JSON.parse(
+      localStorage.getItem("visibleColumns") || "null"
+    );
+
+    setAllColumns(allCols ?? [...defaultColumns]);
+    setVisibleColumns(visibleCols ?? [...defaultColumns]);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("allColumns", JSON.stringify(allColumns));
+  }, [allColumns]);
 
   useEffect(() => {
     localStorage.setItem("visibleColumns", JSON.stringify(visibleColumns));
   }, [visibleColumns]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const handleAddNewField = () => {
+    const formatted = newField.trim().toLowerCase();
+    if (!formatted) return;
+
+    const alreadyExists = allColumns.includes(formatted);
+    if (!alreadyExists) {
+      setAllColumns((prev) => [...prev, formatted]);
+    }
+
+    setVisibleColumns((prev) =>
+      prev.includes(formatted) ? prev : [...prev, formatted]
+    );
+
+    setNewField("");
+  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -115,15 +162,6 @@ const DataTable = () => {
     return "";
   };
 
-  const handleAddNewField = () => {
-    if (!newField.trim()) return;
-    const formatted = newField.trim().toLowerCase();
-    if (!visibleColumns.includes(formatted)) {
-      setVisibleColumns((prev) => [...prev, formatted]);
-    }
-    setNewField("");
-  };
-
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -133,7 +171,7 @@ const DataTable = () => {
   const handleExport = () => {
     const csvContent = [
       visibleColumns.join(","),
-      ...sortedRows.map((row) =>
+      ...sortedRows.map((row: DataTableType) =>
         visibleColumns.map((col) => row[col] ?? "").join(",")
       ),
     ].join("\n");
@@ -176,8 +214,18 @@ const DataTable = () => {
     }));
   };
 
+  const handleClose = (
+    event?: React.SyntheticEvent | Event,
+    reason?: SnackbarCloseReason
+  ) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setOpenSaved(false);
+  };
+
   const saveAllEdits = () => {
-    // Prevent saving if there are validation errors
     const hasErrors = Object.values(validationErrors).some((err) => err);
     if (hasErrors) {
       alert("Please fix validation errors before saving.");
@@ -191,6 +239,7 @@ const DataTable = () => {
     dispatch(setData(updatedRows));
     setEditableRows({});
     setValidationErrors({});
+    setOpenSaved(true);
   };
 
   const cancelAllEdits = () => {
@@ -209,26 +258,77 @@ const DataTable = () => {
     newData.splice(confirmDelete, 1);
     dispatch(setData(newData));
     setConfirmDelete(null);
+    setOpenDelete(true);
   };
 
   const handleAddRow = () => {
-    const newRow: DataTableType = {};
+    const newRow: DataTableType = {
+      name: "",
+      email: "",
+      age: 0,
+      role: "",
+    };
     visibleColumns.forEach((col) => {
       newRow[col] = "";
     });
     dispatch(setData([...rows, newRow]));
   };
 
+  // reorder function
+  const reorder = (list: string[], startIndex: number, endIndex: number) => {
+    const result = [...list];
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result;
+  };
+
+  // handle drag end
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const reordered = reorder(
+      visibleColumns,
+      result.source.index,
+      result.destination.index
+    );
+    setVisibleColumns(reordered);
+  };
+
   return (
-    <>
+    <div className="px-2">
+      <Snackbar
+        open={openSaved}
+        autoHideDuration={3000}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert onClose={handleClose} severity="success" sx={{ width: "100%" }}>
+          Data saved successfully!
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={openDelete}
+        autoHideDuration={3000}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert onClose={handleClose} severity="success" sx={{ width: "100%" }}>
+          Row deleted successfully!
+        </Alert>
+      </Snackbar>
+
       <TextField
         label="Search"
         variant="outlined"
-        fullWidth
         margin="normal"
         value={searchTerm}
         onChange={handleSearchChange}
+        className={`max-w-[30vw]`}
       />
+
+      <Button onClick={toggleColorMode}>
+        Toggle Theme
+        {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
+      </Button>
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <Button
@@ -246,7 +346,8 @@ const DataTable = () => {
           <input type="file" accept=".csv" hidden onChange={handleImport} />
         </Button>
         <Button variant="outlined" onClick={handleExport}>
-          Export CSV
+          
+          <span className="text-blue-500 dark:text-red-400">Export CSV</span>
         </Button>
         {Object.keys(editableRows).length > 0 && (
           <>
@@ -295,7 +396,7 @@ const DataTable = () => {
         <DialogTitle>Manage Columns</DialogTitle>
         <DialogContent>
           <FormGroup>
-            {visibleColumns.map((col) => (
+            {allColumns.map((col) => (
               <FormControlLabel
                 key={col}
                 control={
@@ -317,74 +418,115 @@ const DataTable = () => {
           />
         </DialogContent>
         <DialogActions>
+          <Button onClick={() => setModalOpen(false)}>Cancel</Button>
           <Button onClick={handleAddNewField}>Add</Button>
         </DialogActions>
       </Dialog>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              {visibleColumns.map((column) => (
-                <TableCell
-                  key={column}
-                  onClick={() => handleSort(column)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {column.charAt(0).toUpperCase() + column.slice(1)}
-                  {sortColumn === column
-                    ? sortDirection === "asc"
-                      ? " ↑"
-                      : " ↓"
-                    : ""}
-                </TableCell>
-              ))}
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginatedRows.map((row, idx) => (
-              <TableRow key={idx}>
+      {isMounted && (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              {/* <TableRow>
                 {visibleColumns.map((column) => (
-                  <TableCell key={column}>
-                    <TextField
-                      variant="standard"
-                      value={
-                        editableRows[idx]?.[column] ??
-                        row[column as keyof typeof row] ??
-                        ""
-                      }
-                      onChange={(e) =>
-                        handleCellChange(idx, column, e.target.value)
-                      }
-                      type={column === "age" ? "number" : "text"}
-                      error={!!validationErrors[`${idx}-${column}`]}
-                      helperText={validationErrors[`${idx}-${column}`]}
-                    />
+                  <TableCell
+                    key={column}
+                    onClick={() => handleSort(column)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {column.charAt(0).toUpperCase() + column.slice(1)}
+                    {sortColumn === column
+                      ? sortDirection === "asc"
+                        ? " ↑"
+                        : " ↓"
+                      : ""}
                   </TableCell>
                 ))}
-                <TableCell>
-                  <IconButton
-                    onClick={() => handleDeleteRow(idx)}
-                    color="error"
-                  >
-                    <DeleteIcon onClick={() => handleDeleteRow(idx)} />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          component="div"
-          count={sortedRows.length}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={rowsPerPage}
-          rowsPerPageOptions={[10]}
-        />
-      </TableContainer>
-    </>
+                <TableCell>Actions</TableCell>
+              </TableRow> */}
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="columns" direction="horizontal">
+                  {(provided) => (
+                    <TableRow
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                    >
+                      {visibleColumns.map((column, index) => (
+                        <Draggable
+                          key={column}
+                          draggableId={column}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <TableCell
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              key={column}
+                              onClick={() => handleSort(column)}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {column.charAt(0).toUpperCase() + column.slice(1)}
+                              {sortColumn === column
+                                ? sortDirection === "asc"
+                                  ? " ↑"
+                                  : " ↓"
+                                : ""}
+                            </TableCell>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </TableHead>
+            <TableBody>
+              {paginatedRows.map((row, idx) => (
+                <TableRow key={idx}>
+                  {visibleColumns.map((column) => (
+                    <TableCell key={column}>
+                      <TextField
+                        variant="standard"
+                        value={
+                          editableRows[idx]?.[column] ??
+                          row[column as keyof typeof row] ??
+                          ""
+                        }
+                        onChange={(e) =>
+                          handleCellChange(idx, column, e.target.value)
+                        }
+                        type={column === "age" ? "number" : "text"}
+                        error={!!validationErrors[`${idx}-${column}`]}
+                        helperText={validationErrors[`${idx}-${column}`]}
+                      />
+                    </TableCell>
+                  ))}
+                  <TableCell>
+                    <IconButton
+                      onClick={() => handleDeleteRow(idx)}
+                      color="error"
+                    >
+                      <DeleteIcon onClick={() => handleDeleteRow(idx)} />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination
+            component="div"
+            count={sortedRows.length}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[10]}
+          />
+        </TableContainer>
+      )}
+    </div>
   );
 };
 

@@ -2,21 +2,12 @@
 
 import { Provider } from "react-redux";
 import { store } from "./index";
-import { createTheme, CssBaseline, ThemeProvider } from "@mui/material";
-
-const theme = createTheme({
-  palette: {
-    mode: "light",
-  },
-});
+import { ColorModeProvider } from "../hooks/ThemeToggle";
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
     <Provider store={store}>
-      <ThemeProvider theme={theme}>
-        {/* <CssBaseline /> */}
-        {children}
-      </ThemeProvider>
+      <ColorModeProvider>{children}</ColorModeProvider>
     </Provider>
   );
 };
