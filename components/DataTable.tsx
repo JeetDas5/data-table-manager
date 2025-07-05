@@ -1,7 +1,6 @@
 "use client";
 
 import { RootState } from "@/store";
-import { useColorMode } from "@/hooks/ThemeToggle";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Table,
@@ -27,7 +26,6 @@ import {
   Snackbar,
   Alert,
   SnackbarCloseReason,
-  Switch,
 } from "@mui/material";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
@@ -35,8 +33,6 @@ import { useEffect, useState } from "react";
 import { setData } from "@/redux/tableSlice";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import LightModeIcon from "@mui/icons-material/LightMode";
 import {
   DragDropContext,
   Droppable,
@@ -48,7 +44,6 @@ const defaultColumns = ["name", "email", "age", "role"];
 
 const DataTable = () => {
   const dispatch = useDispatch();
-  const { mode, toggleColorMode } = useColorMode();
   const rows = useSelector((state: RootState) => state.table.data);
   const [editableRows, setEditableRows] = useState<{
     [key: number]: DataTableType;
@@ -322,13 +317,8 @@ const DataTable = () => {
         margin="normal"
         value={searchTerm}
         onChange={handleSearchChange}
-        className={`max-w-[30vw]`}
+        className={`max-w-[30vw] bg-[var(--input-bg)] text-[var(--input-text)] border border-[var(--border-main)] rounded-md focus:outline-none focus:ring-2`}
       />
-
-      <Button onClick={toggleColorMode}>
-        Toggle Theme
-        {mode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
-      </Button>
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <Button
@@ -345,9 +335,12 @@ const DataTable = () => {
           Import CSV
           <input type="file" accept=".csv" hidden onChange={handleImport} />
         </Button>
-        <Button variant="outlined" onClick={handleExport}>
-          
-          <span className="text-blue-500 dark:text-red-400">Export CSV</span>
+        <Button
+          variant="outlined"
+          onClick={handleExport}
+          className=""
+        >
+          Export CSV
         </Button>
         {Object.keys(editableRows).length > 0 && (
           <>
