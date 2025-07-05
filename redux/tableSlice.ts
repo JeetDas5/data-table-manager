@@ -3,16 +3,10 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 const initialState = {
   data: [
     {
-      name: "John",
-      email: "john@example.com",
-      age: 30,
-      role: "Devops Engineer",
-    },
-    {
-      name: "Jane",
-      email: "jane@example.com",
-      age: 25,
-      role: "Product Manager",
+      name: "Jeet",
+      email: "jeet@example.com",
+      age: 20,
+      role: "Frontend Developer",
     },
   ],
 };

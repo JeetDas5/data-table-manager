@@ -268,8 +268,6 @@ const DataTable = () => {
     });
     dispatch(setData([...rows, newRow]));
   };
-
-  // reorder function
   const reorder = (list: string[], startIndex: number, endIndex: number) => {
     const result = [...list];
     const [removed] = result.splice(startIndex, 1);
@@ -277,7 +275,6 @@ const DataTable = () => {
     return result;
   };
 
-  // handle drag end
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const reordered = reorder(
@@ -335,11 +332,7 @@ const DataTable = () => {
           Import CSV
           <input type="file" accept=".csv" hidden onChange={handleImport} />
         </Button>
-        <Button
-          variant="outlined"
-          onClick={handleExport}
-          className=""
-        >
+        <Button variant="outlined" onClick={handleExport} className="">
           Export CSV
         </Button>
         {Object.keys(editableRows).length > 0 && (
@@ -420,23 +413,6 @@ const DataTable = () => {
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
-              {/* <TableRow>
-                {visibleColumns.map((column) => (
-                  <TableCell
-                    key={column}
-                    onClick={() => handleSort(column)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {column.charAt(0).toUpperCase() + column.slice(1)}
-                    {sortColumn === column
-                      ? sortDirection === "asc"
-                        ? " ↑"
-                        : " ↓"
-                      : ""}
-                  </TableCell>
-                ))}
-                <TableCell>Actions</TableCell>
-              </TableRow> */}
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="columns" direction="horizontal">
                   {(provided) => (
@@ -450,14 +426,19 @@ const DataTable = () => {
                           draggableId={column}
                           index={index}
                         >
-                          {(provided) => (
+                          {(provided, snapshot) => (
                             <TableCell
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              key={column}
                               onClick={() => handleSort(column)}
-                              style={{ cursor: "pointer" }}
+                              style={{
+                                ...provided.draggableProps.style,
+                                cursor: "grab",
+                                backgroundColor: snapshot.isDragging
+                                  ? "#e0f2fe"
+                                  : "inherit",
+                              }}
                             >
                               {column.charAt(0).toUpperCase() + column.slice(1)}
                               {sortColumn === column
