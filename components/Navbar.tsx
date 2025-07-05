@@ -25,7 +25,15 @@ const Navbar = () => {
       }}
     >
       <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-        <Typography variant="h6" fontWeight="bold" className="text-blue-600">
+        <Typography
+          variant="h6"
+          fontWeight="bold"
+          className="text-blue-600"
+          sx={{
+            color: theme.palette.mode === "dark" ? "#2d93cf" : "#0f72db",
+            fontSize: "1.5rem",
+          }}
+        >
           Dynamic Data Table
         </Typography>
         <Box>

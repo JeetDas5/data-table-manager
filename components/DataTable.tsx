@@ -218,6 +218,7 @@ const DataTable = () => {
     }
 
     setOpenSaved(false);
+    setOpenDelete(false);
   };
 
   const saveAllEdits = () => {
@@ -293,7 +294,7 @@ const DataTable = () => {
         onClose={handleClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={handleClose} severity="success" sx={{ width: "100%" }}>
+        <Alert severity="success" sx={{ width: "100%" }}>
           Data saved successfully!
         </Alert>
       </Snackbar>
@@ -303,7 +304,7 @@ const DataTable = () => {
         onClose={handleClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <Alert onClose={handleClose} severity="success" sx={{ width: "100%" }}>
+        <Alert severity="success" sx={{ width: "100%" }}>
           Row deleted successfully!
         </Alert>
       </Snackbar>
